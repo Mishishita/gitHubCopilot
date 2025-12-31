@@ -46,7 +46,56 @@ document.addEventListener("DOMContentLoaded", () => {
           details.participants.forEach((p) => {
             const li = document.createElement("li");
             li.className = "participant-item";
-            li.textContent = p;
+
+            const row = document.createElement("div");
+            row.className = "participant-row";
+
+            const span = document.createElement("span");
+            span.className = "participant-email";
+            span.textContent = p;
+
+            const del = document.createElement("button");
+            del.className = "delete-btn";
+            del.setAttribute("aria-label", `Unregister ${p} from ${name}`);
+            del.textContent = "✖";
+
+            del.addEventListener("click", async () => {
+              del.disabled = true;
+              try {
+                const res = await fetch(`/activities/${encodeURIComponent(name)}/unregister?email=${encodeURIComponent(p)}`, {
+                  method: "DELETE",
+                });
+
+                const body = await res.json().catch(() => ({}));
+
+                if (res.ok) {
+                  messageDiv.textContent = body.message || `Unregistered ${p}`;
+                  messageDiv.className = "message success";
+                  messageDiv.classList.remove("hidden");
+                  // Refresh the activities list
+                  fetchActivities();
+                } else {
+                  messageDiv.textContent = body.detail || "Failed to unregister";
+                  messageDiv.className = "message error";
+                  messageDiv.classList.remove("hidden");
+                  del.disabled = false;
+                }
+
+                setTimeout(() => {
+                  messageDiv.classList.add("hidden");
+                }, 4000);
+              } catch (err) {
+                console.error("Error unregistering:", err);
+                messageDiv.textContent = "Network error while unregistering";
+                messageDiv.className = "message error";
+                messageDiv.classList.remove("hidden");
+                del.disabled = false;
+              }
+            });
+
+            row.appendChild(span);
+            row.appendChild(del);
+            li.appendChild(row);
             ul.appendChild(li);
           });
         } else {
@@ -92,11 +141,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (response.ok) {
         messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        messageDiv.className = "message success";
         signupForm.reset();
+        // Refresh activities so the new participant appears without page reload
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        messageDiv.className = "message error";
       }
 
       messageDiv.classList.remove("hidden");
@@ -107,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 5000);
     } catch (error) {
       messageDiv.textContent = "Failed to sign up. Please try again.";
-      messageDiv.className = "error";
+      messageDiv.className = "message error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
     }
